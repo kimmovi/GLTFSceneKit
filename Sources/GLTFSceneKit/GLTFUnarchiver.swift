@@ -106,6 +106,8 @@ public class GLTFUnarchiver {
         
         // just throw the error to the user
         self.json = try decoder.decode(GLTFGlTF.self, from: jsonData)
+        
+        self.json.animations = [ self.json.animations![1] ]
 
         // Errors can be:
         // DecodingError.keyNotFound(let key, let context)

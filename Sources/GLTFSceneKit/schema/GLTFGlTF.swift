@@ -19,7 +19,7 @@ struct GLTFGlTF: GLTFPropertyProtocol {
   let accessors: [GLTFAccessor]?
 
   /** An array of keyframe animations. */
-  let animations: [GLTFAnimation]?
+  var animations: [GLTFAnimation]?
 
   /** Metadata about the glTF asset. */
   let asset: GLTFAsset
