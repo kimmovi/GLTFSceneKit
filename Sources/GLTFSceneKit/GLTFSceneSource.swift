@@ -55,13 +55,14 @@ public class GLTFSceneSource : SCNSceneSource {
         try self.init(path: path, options: options, extensions: extensions)
     }
     
-    public override func scene(options: [SCNSceneSource.LoadingOption : Any]? = nil) throws -> SCNScene {
+    public func scene(options: [SCNSceneSource.LoadingOption : Any]? = nil, animationIndex: Int = -1) throws -> SCNScene {
         guard let loader = self.loader else {
             if let error = self.error {
                 throw error
             }
             throw GLTFUnarchiveError.Unknown("loader is not initialized")
         }
+        loader.setAnimationIndex( animationIndex )
         let scene = try loader.loadScene()
         #if SEEMS_TO_HAVE_SKINNER_VECTOR_TYPE_BUG
             let sceneData = NSKeyedArchiver.archivedData(withRootObject: scene)
@@ -73,14 +74,11 @@ public class GLTFSceneSource : SCNSceneSource {
         #endif
     }
     
-    /*
-    public func cameraNodes() -> [SCNNode] {
-        var cameraNodes = [SCNNode]()
-        
-        let scene = try self.loader.loadScene()
-        scene.rootNode.childNodes
-        
-        return cameraNodes
+    public func getAnimations() -> [String]? {
+        return loader?.getAnimations()
     }
-     */
+    
+    public func getAnimationDurations() -> [CFTimeInterval?]? {
+        return loader?.getDurations()
+    }
 }
