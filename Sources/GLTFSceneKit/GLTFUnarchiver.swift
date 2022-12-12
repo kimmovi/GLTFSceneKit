@@ -20,6 +20,7 @@ let bundle = Bundle.module_workaround
 public class GLTFUnarchiver {
     private var directoryPath: URL? = nil
     private var json: GLTFGlTF! = nil
+    private var selectedAnimationIdx = 1
     private var bin: Data?
     
     internal var scene: SCNScene?
@@ -106,8 +107,6 @@ public class GLTFUnarchiver {
         
         // just throw the error to the user
         self.json = try decoder.decode(GLTFGlTF.self, from: jsonData)
-        
-        self.json.animations = [ self.json.animations![1] ]
 
         // Errors can be:
         // DecodingError.keyNotFound(let key, let context)
@@ -115,6 +114,19 @@ public class GLTFUnarchiver {
         // DecodingError.valueNotFound(let type, let context)
 
         self.initArrays()
+    }
+    
+    public func setAnimationIndex(_ animationIndex: Int) {
+        self.selectedAnimationIdx = animationIndex
+    }
+    
+    public func getAnimations() -> [String]? {
+        return self.json.animations?.map { $0.name } as? [String]
+    }
+    
+    public func getDurations() -> [CFTimeInterval?] {
+        let arr = try! getDurationsFromAnimations()
+        return arr
     }
     
     private func initArrays() {
@@ -1373,6 +1385,7 @@ public class GLTFUnarchiver {
                 throw GLTFUnarchiveError.DataInconsistent("loadAnimation: morpher is not defined)")
             }
             animation = try self.loadWeightAnimationsSampler(index: index, sampler: samplerIndex, paths: weightPaths)
+            
         } else {
             let flipW = false
             //let flipW = keyPath == "rotation"
@@ -1385,7 +1398,7 @@ public class GLTFUnarchiver {
             keyframeAnimation.keyPath = animationKeyPath
             animation = group
         }
-        
+        animation.usesSceneTimeBase = true // Testing
         //let scnAnimation = SCNAnimation(caAnimation: animation)
         //node.addAnimation(scnAnimation, forKey: keyPath)
         node.addAnimation(animation, forKey: keyPath)
@@ -1402,17 +1415,33 @@ public class GLTFUnarchiver {
         
         let node = try self.loadNode(index: index)
         let weightPaths = node.value(forUndefinedKey: "weightPaths") as? [String]
-        for i in 0..<animations.count {
-            let animation = animations[i]
+        
+        if(selectedAnimationIdx >= 0) {
+            let idx = selectedAnimationIdx > animations.count ? animations.count : selectedAnimationIdx
+            let animation = animations[idx]
             for j in 0..<animation.channels.count {
                 let channel = animation.channels[j]
                 if channel.target.node == index {
-                    let animation = try self.loadAnimation(index: i, channel: j, weightPaths: weightPaths)
+                    let animation = try self.loadAnimation(index: idx, channel: j, weightPaths: weightPaths)
                     node.addAnimation(animation, forKey: nil)
+                }
+            }
+        } else {
+            for i in 0..<animations.count {
+                // if animation index - just load specific animation
+                let animation = animations[i]
+                for j in 0..<animation.channels.count {
+                    let channel = animation.channels[j]
+                    if channel.target.node == index {
+                        let animation = try self.loadAnimation(index: i, channel: j, weightPaths: weightPaths)
+                        node.addAnimation(animation, forKey: nil)
+                    }
                 }
             }
         }
     }
+    
+    
     
     private func getMaxAnimationDuration() throws -> CFTimeInterval {
         guard let animations = self.json.animations else { return 0.0 }
@@ -1432,6 +1461,28 @@ public class GLTFUnarchiver {
             }
         }
         return duration
+    }
+    
+    private func getDurationsFromAnimations() throws -> [CFTimeInterval] {
+        guard let animations = self.json.animations else { return [0.0] }
+        guard let accessors = self.json.accessors else { return [0.0] }
+        var durations: [CFTimeInterval] = []
+        for animation in animations {
+            var duration: CFTimeInterval = 0.0
+            for sampler in animation.samplers {
+                let accessor = accessors[sampler.input]
+                if let max = accessor.max {
+                    guard max.count == 1 else {
+                        throw GLTFUnarchiveError.DataInconsistent("getMaxAnimationDuration: keyTime must be SCALAR type")
+                    }
+                    if CFTimeInterval(max[0]) > duration {
+                        duration = CFTimeInterval(max[0])
+                    }
+                }
+            }
+            durations.append(duration)
+        }
+        return durations
     }
     
     private func loadInverseBindMatrices(index: Int) throws -> [NSValue] {
