@@ -20,7 +20,8 @@ let bundle = Bundle.module_workaround
 public class GLTFUnarchiver {
     private var directoryPath: URL? = nil
     private var json: GLTFGlTF! = nil
-    private var selectedAnimationIdx = 1
+    private var selectedAnimationIdx = -1
+    private var loadAllAnimations = true
     private var bin: Data?
     
     internal var scene: SCNScene?
@@ -114,6 +115,10 @@ public class GLTFUnarchiver {
         // DecodingError.valueNotFound(let type, let context)
 
         self.initArrays()
+    }
+    
+    public func setLoadAllAnimations( loadAllAnimations: Bool ) {
+        self.loadAllAnimations = loadAllAnimations
     }
     
     public func setAnimationIndex(_ animationIndex: Int) {
@@ -1416,7 +1421,7 @@ public class GLTFUnarchiver {
         let node = try self.loadNode(index: index)
         let weightPaths = node.value(forUndefinedKey: "weightPaths") as? [String]
         
-        if(selectedAnimationIdx >= 0) {
+        if(!loadAllAnimations && selectedAnimationIdx >= 0) {
             let idx = selectedAnimationIdx > animations.count ? animations.count : selectedAnimationIdx
             let animation = animations[idx]
             for j in 0..<animation.channels.count {
@@ -1441,13 +1446,13 @@ public class GLTFUnarchiver {
         }
     }
     
-    
-    
     private func getMaxAnimationDuration() throws -> CFTimeInterval {
         guard let animations = self.json.animations else { return 0.0 }
         guard let accessors = self.json.accessors else { return 0.0 }
         var duration: CFTimeInterval = 0.0
-        for animation in animations {
+        
+        if(!loadAllAnimations && selectedAnimationIdx >= 0) {
+            let animation = animations[selectedAnimationIdx]
             for sampler in animation.samplers {
                 let accessor = accessors[sampler.input]
                 if let max = accessor.max {
@@ -1456,6 +1461,20 @@ public class GLTFUnarchiver {
                     }
                     if CFTimeInterval(max[0]) > duration {
                         duration = CFTimeInterval(max[0])
+                    }
+                }
+            }
+        } else {
+            for animation in animations {
+                for sampler in animation.samplers {
+                    let accessor = accessors[sampler.input]
+                    if let max = accessor.max {
+                        guard max.count == 1 else {
+                            throw GLTFUnarchiveError.DataInconsistent("getMaxAnimationDuration: keyTime must be SCALAR type")
+                        }
+                        if CFTimeInterval(max[0]) > duration {
+                            duration = CFTimeInterval(max[0])
+                        }
                     }
                 }
             }
@@ -1552,7 +1571,7 @@ public class GLTFUnarchiver {
         
         return matrices
     }
-    
+
     private func loadSkin(index: Int, meshNode: SCNNode) throws -> SCNSkinner {
         guard index < self.skins.count else {
             throw GLTFUnarchiveError.DataInconsistent("loadSkin: out of index: \(index) < \(self.skins.count)")
@@ -1685,7 +1704,7 @@ public class GLTFUnarchiver {
                 //scnNode.skinner = skinner
             }
         }
-        
+
         if let matrix = glNode._matrix {
             scnNode.transform = createMatrix4(matrix)
             if glNode._rotation != nil || glNode._scale != nil || glNode._translation != nil {
