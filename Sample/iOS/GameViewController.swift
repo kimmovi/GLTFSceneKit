@@ -23,8 +23,19 @@ class GameViewController: UIViewController {
         
         var scene: SCNScene
         do {
-            let sceneSource = try GLTFSceneSource(named: "art.scnassets/GlassVase/Wayfair-GlassVase-BCHH2364.glb")
-            scene = try sceneSource.scene()
+            let startTimeLoadAll = CFAbsoluteTimeGetCurrent()
+            let sceneSource = try GLTFSceneSource(named: "art.scnassets/pilot-pororo.glb")
+            scene = try sceneSource.scene(options: nil, animationIndex: -1, loadAllAnimations: true)
+            let endTimeLoadAll = CFAbsoluteTimeGetCurrent()
+            let timeTaken = (endTimeLoadAll - startTimeLoadAll)
+            print("Loading All Animations: \(timeTaken)s")
+            
+            let startTimeSingle = CFAbsoluteTimeGetCurrent()
+            let sceneSource2 = try GLTFSceneSource(named: "art.scnassets/pilot-pororo.gltf")
+            scene = try sceneSource2.scene(options: nil, animationIndex: 1, loadAllAnimations: false)
+            let endTimeSingle = CFAbsoluteTimeGetCurrent()
+            let timeTakenSingle = (endTimeSingle - startTimeSingle)
+            print("Loading Only selected animation taken: \(timeTakenSingle)s")
         } catch {
             print("\(error.localizedDescription)")
             return
