@@ -1421,7 +1421,7 @@ public class GLTFUnarchiver {
         let node = try self.loadNode(index: index)
         let weightPaths = node.value(forUndefinedKey: "weightPaths") as? [String]
         
-        if(!loadAllAnimations && selectedAnimationIdx >= 0) {
+        if(selectedAnimationIdx >= 0) {
             let idx = selectedAnimationIdx > animations.count ? animations.count : selectedAnimationIdx
             let animation = animations[idx]
             for j in 0..<animation.channels.count {
