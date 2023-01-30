@@ -1417,7 +1417,10 @@ public class GLTFUnarchiver {
     //@available(OSX 10.13, *)
     private func loadAnimation(forNode index: Int) throws {
         guard let animations = self.json.animations else { return }
-        
+        if animations.count == 0 {
+            return
+        }
+
         let node = try self.loadNode(index: index)
         let weightPaths = node.value(forUndefinedKey: "weightPaths") as? [String]
         
@@ -1449,6 +1452,9 @@ public class GLTFUnarchiver {
     private func getMaxAnimationDuration() throws -> CFTimeInterval {
         guard let animations = self.json.animations else { return 0.0 }
         guard let accessors = self.json.accessors else { return 0.0 }
+        if( animations.count == 0 ) {
+            return 0.0
+        }
         var duration: CFTimeInterval = 0.0
         
         if(!loadAllAnimations && selectedAnimationIdx >= 0) {
